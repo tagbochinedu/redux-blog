@@ -1,4 +1,9 @@
-import { createSlice, nanoid, createAsyncThunk } from "@reduxjs/toolkit";
+import {
+  createSlice,
+  nanoid,
+  createAsyncThunk,
+  createSelector,
+} from "@reduxjs/toolkit";
 import { sub } from "date-fns";
 import axios from "axios";
 
@@ -146,7 +151,7 @@ const PostsSlice = createSlice({
           return;
         }
         const { id } = action.payload;
-        
+
         const posts = state.posts.filter((post) => post.id !== id);
         state.posts = [...posts];
       });
@@ -154,12 +159,16 @@ const PostsSlice = createSlice({
 });
 
 //the createSlice automatically creates an action creator function which returns an action. An action is an object which contains type and payload keys
+//the createSelector is a redux toolkit utility function which takes in two selectors as dependencies and uses them to return a part of the state. The difference between the createSelector function and regular selectors is that selectors re-run everytime the state changes and so cause the page to re-render while the createSelector uses the selectors as dependencies and only re-runs when one or both change, thus optimising the code
 export const { addPost, addReaction } = PostsSlice.actions;
 export const getPostsStatus = (state) => state.posts.status;
 export const getPostsError = (state) => state.posts.error;
 export const selectAllPosts = (state) => state.posts.posts;
 export const selectPostById = (state, postId) => {
-  console.log(state.posts.posts, postId);
   return state.posts.posts.find((post) => post.id === postId);
 };
+export const selectPostsByUser = createSelector(
+  [selectAllPosts, (state, userId) => userId],
+  (posts, userId) => posts.filter(post => post.userId === userId)
+);
 export default PostsSlice.reducer;

@@ -4,6 +4,8 @@ import Header from './Components/Header'
  import Post from "./Pages/Post";
  import CreatePost from './Pages/CreatePost'
 import EditPostForm from './Pages/EditPost';
+import UserPage from './Pages/UserPage';
+import UserList from "./Pages/UserList";
 
 function App() {
   return (
@@ -14,6 +16,8 @@ function App() {
         <Route exact path="/:id/edit" element={<EditPostForm />} />
         <Route exact path="/post-form" element={<CreatePost />} />
         <Route exact path="/:id" element={<Post />} />
+        <Route exact path="/user/:id" element={<UserPage />} />
+        <Route exact path="/users" element={<UserList />} />
       </Routes>
     </main>
   );
