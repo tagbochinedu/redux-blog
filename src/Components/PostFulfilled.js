@@ -1,12 +1,12 @@
 import React from "react";
 import { Link} from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { selectAllPosts, addReaction } from "../Features/Posts/PostsSlice";
+import { selectAllPosts, addReaction, selectPostIds } from "../Features/Posts/PostsSlice";
 import { selectAllUsers } from "../Features/Users/UsersSlice";
 import { parseISO, formatDistanceToNow } from "date-fns";
 
 const PostFulfilled = () => {
-  
+  const orderedPostIds = useSelector(selectAllPosts)
   const dispatch = useDispatch();
   const posts = useSelector(selectAllPosts);
   const users = useSelector(selectAllUsers);
@@ -25,13 +25,12 @@ const PostFulfilled = () => {
     rocket: "🚀",
     coffee: "☕",
   };
-  const OrderedPost = posts.slice();
-  const OrderedPosts = OrderedPost.sort((a, b) => b.date.localeCompare(a.date));
+  
 
   return (
     <>
     
-      {OrderedPosts.map((post) => {
+      {orderedPostIds.map((post) => {
         const author = users.find((user) => user.id === post.userId);
         return (
           <article
@@ -54,7 +53,7 @@ const PostFulfilled = () => {
               {Object.entries(reactions).map(([name, emoji]) => {
                 return (
                   <button
-                    key={name}
+                    key={name} 
                     className="bg-transparent mx-2"
                     onClick={() => {
                       dispatch(

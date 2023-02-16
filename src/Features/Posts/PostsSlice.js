@@ -3,17 +3,22 @@ import {
   nanoid,
   createAsyncThunk,
   createSelector,
+  createEntityAdapter,
 } from "@reduxjs/toolkit";
 import { sub } from "date-fns";
 import axios from "axios";
 
 const POSTS_URL = "https://jsonplaceholder.typicode.com/posts";
+//With createEntityAdapter, you can define a set of standardized functions for manipulating and accessing these entities in your store.
+const postsAdapter = createEntityAdapter({
+  sortComparer: (a, b)=>b.date.localeCompare(a.date)
+})
 
-const initialState = {
-  posts: [],
+//In Redux, the getInitialState function is used to define the initial state of a slice of the Redux store. The getInitialState function is typically called once when the Redux store is initialized, and its return value is used as the initial state for that particular slice of the store. The function can be defined in the reducer function that corresponds to that slice.
+const initialState = postsAdapter.getInitialState({
   status: "idle", //idle | loading | succeeded | failed
   error: null,
-};
+})
 
 //createAsyncThunk is a middleware used for http requests because redux toolkit operates synchronously and so cannot handle asynchronous functions. Thus async thunk serves as a middleware for bridging that gap.It takes two arguments. the first is the prefix for the generated action type which is a string and the second is a callback which creates a payload
 export const fetchPosts = createAsyncThunk("posts/fetchPosts", async () => {
@@ -61,33 +66,10 @@ const PostsSlice = createSlice({
   name: "posts",
   initialState,
   reducers: {
-    addPost: {
-      reducer(state, action) {
-        state.posts.push(action.payload);
-      },
-      //the prepare callback is simply a way to 'prepare' the payload before it is used to update the state. So once it is set, it will run before the reducer function that was set to update the state
-      prepare(title, content, userId) {
-        return {
-          payload: {
-            id: nanoid(),
-            title,
-            content,
-            userId,
-            date: new Date().toISOString(),
-            reactions: {
-              thumbsUp: 0,
-              wow: 0,
-              heart: 0,
-              rocket: 0,
-              coffee: 0,
-            },
-          },
-        };
-      },
-    },
     addReaction(state, action) {
       const { postId, reaction } = action.payload;
-      const existingPost = state.posts.find((post) => post.id === postId);
+      //the getInitialState function creates an entities object in which the data is stored. Thus to access it, we pass the postId directly instead of using the find array method
+      const existingPost = state.entities[postId];
       if (existingPost) {
         existingPost.reactions[reaction]++;
       }
@@ -112,7 +94,7 @@ const PostsSlice = createSlice({
           };
           return post;
         });
-        state.posts = state.posts.concat(loadedPosts);
+        postsAdapter.upsertMany(state, loadedPosts);
       })
       .addCase(fetchPosts.rejected, (state, action) => {
         state.status = "failed";
@@ -130,7 +112,7 @@ const PostsSlice = createSlice({
           eyes: 0,
         };
 
-        state.posts.push(action.payload);
+        postsAdapter.addOne(state, action.payload)
         console.log(state.posts);
       })
       .addCase(updatePost.fulfilled, (state, action) => {
@@ -139,10 +121,8 @@ const PostsSlice = createSlice({
           console.log(action.payload);
           return;
         }
-        const { id } = action.payload;
         action.payload.date = new Date().toISOString();
-        const posts = state.posts.filter((post) => post.id !== id);
-        state.posts = [...posts, action.payload];
+        postsAdapter.upsertOne(state, action.payload)
       })
       .addCase(deletePost.fulfilled, (state, action) => {
         if (!action.payload?.id) {
@@ -151,24 +131,25 @@ const PostsSlice = createSlice({
           return;
         }
         const { id } = action.payload;
-
-        const posts = state.posts.filter((post) => post.id !== id);
-        state.posts = [...posts];
+        postsAdapter.removeOne(state, id)
       });
   },
 });
 
 //the createSlice automatically creates an action creator function which returns an action. An action is an object which contains type and payload keys
-//the createSelector is a redux toolkit utility function which takes in two selectors as dependencies and uses them to return a part of the state. The difference between the createSelector function and regular selectors is that selectors re-run everytime the state changes and so cause the page to re-render while the createSelector uses the selectors as dependencies and only re-runs when one or both change, thus optimising the code
+
 export const { addPost, addReaction } = PostsSlice.actions;
 export const getPostsStatus = (state) => state.posts.status;
 export const getPostsError = (state) => state.posts.error;
-export const selectAllPosts = (state) => state.posts.posts;
-export const selectPostById = (state, postId) => {
-  return state.posts.posts.find((post) => post.id === postId);
-};
+
+export const {
+  selectAll: selectAllPosts,
+  selectById: selectPostById,
+  selectIds: selectPostIds
+} = postsAdapter.getSelectors(state=>state.posts)
+//the createSelector is a redux toolkit utility function which takes in two selectors as dependencies and uses them to return a part of the state. The difference between the createSelector function and regular selectors is that selectors re-run everytime the state changes and so cause the page to re-render while the createSelector uses the selectors as dependencies and only re-runs when one or both change, thus optimising the code
 export const selectPostsByUser = createSelector(
   [selectAllPosts, (state, userId) => userId],
-  (posts, userId) => posts.filter(post => post.userId === userId)
+  (posts, userId) => posts.filter((post) => post.userId === userId)
 );
 export default PostsSlice.reducer;
